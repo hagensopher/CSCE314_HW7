@@ -32,7 +32,7 @@ data WExp = Val WValue
           | And WExp WExp
           | Or WExp WExp
           | Not WExp
-
+--exec :: WStmt -> Memory -> Memory takes a statement (if,delcare,while) and the block of memory and returns the block of memeory
 data WStmt = Empty
            | VarDecl String WExp
            | Assign String WExp
@@ -108,9 +108,26 @@ eval (Not (Val (VBool True))) mm = VBool False-- maybe not needed
 eval (Not (Val (VBool False))) mm = VBool True-- maybe not needed
 eval (Not x) mm =  (eval x mm)
 
+
+
+--type Memory = [(String, WValue)] memory again for access
+--values for testing
+f = Val (VInt 4)
+g = VarDecl "acc" f
 -- exec function
 exec :: WStmt -> Memory -> Memory
-exec = undefined
+--exec = undefined
+--exec (VarDecl name thing) mm = []
+exec (VarDecl name thing) mm = mm ++ [(name, eval thing mm)] --is this right???? how does memory work???
+exec (Assign name thing) mm = mm ++ [(name, eval thing mm)] --- i know this is wrong lol
+exec (Block stmtlist) mm = ("|",undefined) : mm --need recusion for the block!!!
+exec (If exp stmt1 stmt2) mm = eval exp   --both stmt1 and stmt2 can be recusive like if (5<3) > (6<2)
+
+
+
+
+
+
 
 -- example programs
 factorial = 
