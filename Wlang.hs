@@ -11,7 +11,7 @@ import System.Exit
 -- AST definition for W
 data WValue = VInt Int 
             | VBool Bool 
-              deriving (Eq, Show,Ord) --can i add this?
+              deriving (Eq, Show) --can i add this?
 
 data WExp = Val WValue
 
@@ -51,7 +51,7 @@ eval :: WExp -> Memory -> WValue
 eval (Val (VInt x)) myMemory = VInt x
 eval (Val (VBool y)) myMemory = VBool y
 --Val case (dont get what string is)
---eval (Var myString) myMemory = myString
+eval (Var myString) myMemory = fromJust(lookup myString myMemory)
 
 --Plus (like hw6)
 eval (Plus (Val (VInt x) ) (Val (VInt y))) myMemory = VInt(x+y)
@@ -79,19 +79,19 @@ eval (NotEqual x y) mm = VBool ((eval x mm) /= (eval y mm))
 
 --Less (New)
 --eval (Less (Val (VBool x)) (Val (VBool y))) mm = VBool(x < y) -- maybe not needed
-eval (Less x y) mm = VBool ((eval x mm) < (eval y mm))
+eval (Less x y) mm = VBool (asInt(eval x mm) < asInt(eval y mm))
 
 --LessOrEqual (New)
 --eval (LessOrEqual (Val (VBool x)) (Val (VBool y))) mm = VBool(x <= y) -- maybe not needed
-eval (LessOrEqual x y) mm = VBool ((eval x mm) <= (eval y mm))
+eval (LessOrEqual x y) mm = VBool (asInt(eval x mm) <= asInt(eval y mm))
 
 --Greater (New)
 --eval (Greater (Val (VBool x)) (Val (VBool y))) mm = VBool(x > y) -- maybe not needed
-eval (Greater x y) mm = VBool ((eval x mm) > (eval y mm))
+eval (Greater x y) mm = VBool (asInt(eval x mm) > asInt(eval y mm))
 
 --GreaterOrEqual (New)
 --eval (GreaterOrEqual (Val (VBool x)) (Val (VBool y))) mm = VBool(x <= y) -- maybe not needed
-eval (GreaterOrEqual x y) mm = VBool ((eval x mm) >= (eval y mm))
+eval (GreaterOrEqual x y) mm = VBool (asInt(eval x mm) >= asInt(eval y mm))
 
 --AND (New)
 eval (And (Val (VBool True)) (Val (VBool True))) mm = VBool True -- maybe not needed
@@ -118,14 +118,16 @@ g = VarDecl "acc" f
 exec :: WStmt -> Memory -> Memory
 --exec = undefined
 --exec (VarDecl name thing) mm = []
-exec (VarDecl name thing) mm = mm ++ [(name, eval thing mm)] --is this right???? how does memory work???
-exec (Assign name thing) mm = mm ++ [(name, eval thing mm)] --- i know this is wrong lol
-exec (Block stmtlist) mm = ("|",undefined) : mm --need recusion for the block!!!
-exec (If exp stmt1 stmt2) mm = eval exp   --both stmt1 and stmt2 can be recusive like if (5<3) > (6<2)
+exec (VarDecl name thing) mm =  if (lookup name mm) == Nothing then (name, eval thing mm) : mm   else  error "Variable already declared"  --is this right???? how does memory work???
+exec (Assign name thing) mm = if (lookup name mm) /= Nothing then (name, eval thing mm) : mm else error "Variable was not declared"  --- i know this is wrong lol
+exec (Block stmtlist) mm = (helperBlock stmtlist mm) ++ ("|",VInt (-1)) : mm --need recusion for the block!!!
+exec (If exp stmt1 stmt2) mm = if asBool(eval exp mm) then exec stmt1 mm else exec stmt2 mm  --both stmt1 and stmt2 can be recusive like if (5<3) > (6<2)
+--exec (While exp stmt1) mm = if asBool(eval exp mm) then exec stmt1 mm 
 
-
-
-
+-- helpher function for block
+helperBlock :: [WStmt] -> Memory -> Memory
+helperBlock [] mm = mm
+helperBlock (x:xs) mm = (helperBlock xs mm) ++ (exec x mm) 
 
 
 
