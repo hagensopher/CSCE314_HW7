@@ -119,18 +119,28 @@ exec :: WStmt -> Memory -> Memory
 --exec = undefined
 --exec (VarDecl name thing) mm = []
 exec (VarDecl name thing) mm =  if (lookup name mm) == Nothing then (name, eval thing mm) : mm   else  error "Variable already declared"  --is this right???? how does memory work???
-exec (Assign name thing) mm = if (lookup name mm) /= Nothing then (name, eval thing mm) : mm else error "Variable was not declared"  --- i know this is wrong lol
-exec (Block stmtlist) mm = (helperBlock stmtlist mm) ++ ("|",VInt (-1)) : mm --need recusion for the block!!!
-exec (If exp stmt1 stmt2) mm = if asBool(eval exp mm) then exec stmt1 mm else exec stmt2 mm  --both stmt1 and stmt2 can be recusive like if (5<3) > (6<2)
---exec (While exp stmt1) mm = if asBool(eval exp mm) then exec stmt1 mm 
+exec (Assign name thing) mm = if (lookup name mm) /= Nothing then help2 mm name (eval thing mm) else error "Variable was not declared"  --- i know this is wrong lol
+exec (Block stmtlist) mm = (helperBlock stmtlist mm2)  --need recusion for the block!!!
+  where mm2 = ("|",VInt (-1)) : mm
+exec (If exp stmt1 stmt2) mm = if asBool(eval exp mm) then exec stmt2 mm else exec stmt1 mm  --both stmt1 and stmt2 can be recusive like if (5<3) > (6<2)
+--exec (While exp stmt1) mm = if asBool(eval exp mm) then exec stmt1 mm else  
 
 -- helpher function for block
 helperBlock :: [WStmt] -> Memory -> Memory
-helperBlock [] mm = mm
-helperBlock (x:xs) mm = (helperBlock xs mm) ++ (exec x mm) 
+helperBlock [] mm = mm --maybe when a block is done clear the memory with a new function
+helperBlock (x:xs) mm = (helperBlock xs (exec x mm))
+--maybe need a while blcok helper similar to helperBlock
+
+dropMemory:: Memory -> Memory
+dropMemory (x:xs) = if not (isMarker x) then dropMemory xs else xs
 
 
+help:: Memory -> String -> Int -> Int 
+help (x:xs) f count = if fst x == f then count else help xs f (count+1)
 
+help2:: Memory -> String -> WValue -> Memory
+help2 myList name newV = take count myList ++ [(name,newV)] ++ drop (count+1) myList
+  where count = (help myList name 0 )
 -- example programs
 factorial = 
   Block
@@ -155,7 +165,12 @@ p1 = Block
          ( Block [ Assign "x" (Val (VInt 1)) ] )
          ( Block [ Assign "x" (Val (VInt 2)) ] )
      ]
+p2 = Block
+     [
+       VarDecl "x" (Val (VInt 0)),
+       Assign "c" (Val (VInt 7))
 
+     ]
 -- some useful helper functions
 lookup s [] = Nothing
 lookup s ((k,v):xs) | s == k = Just v
@@ -186,3 +201,11 @@ main = do c <- runTestTT myTestList
           let errs = errors c
               fails = failures c
           if (errs + fails /= 0) then exitFailure else return ()
+
+ahh:: [Int] -> Int -> Int-> Int
+ahh (x:xs) f count = if x == f then count else ahh xs f (count + 1)
+
+ahh2:: [Int] -> Int -> Int-> [Int]
+ahh2 myList oldV newV = take count myList ++ [newV] ++ drop (count+1) myList
+  where count = (ahh myList oldV 0 )
+
