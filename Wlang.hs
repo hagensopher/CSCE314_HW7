@@ -1,6 +1,7 @@
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
--- Assignment 7, CSCE-314
 
+-- Assignment 7, CSCE-314
+-- Hagen Sopher
+--UIN: 426004814
 module Main where
 
 import Prelude hiding (lookup)
@@ -94,71 +95,63 @@ eval (Greater x y) mm = VBool (asInt(eval x mm) > asInt(eval y mm))
 eval (GreaterOrEqual x y) mm = VBool (asInt(eval x mm) >= asInt(eval y mm))
 
 --AND (New)
-eval (And (Val (VBool True)) (Val (VBool True))) mm = VBool True -- maybe not needed
-eval (And (Val (VBool _)) (Val (VBool _))) mm = VBool False -- maybe not needed
+eval (And (Val (VBool True)) (Val (VBool True))) mm = VBool True 
+eval (And (Val (VBool _)) (Val (VBool _))) mm = VBool False 
 eval (And x y) mm = eval (And (Val (eval x mm)) (Val (eval y mm))) mm
 
 --Or (New)
 --eval (Or (Val (VBool x)) (Val (VBool y))) mm = VBool(x || y) -- maybe not needed
-eval (Or (Val (VBool False)) (Val (VBool False))) mm = VBool False -- maybe not needed
-eval (Or (Val (VBool _)) (Val (VBool _))) mm = VBool True -- maybe not needed
+eval (Or (Val (VBool False)) (Val (VBool False))) mm = VBool False 
+eval (Or (Val (VBool _)) (Val (VBool _))) mm = VBool True 
 eval (Or x y) mm = eval (Or (Val (eval x mm)) (Val (eval y mm))) mm
 --Not (New)
-eval (Not (Val (VBool True))) mm = VBool False-- maybe not needed
-eval (Not (Val (VBool False))) mm = VBool True-- maybe not needed
+eval (Not (Val (VBool True))) mm = VBool False
+eval (Not (Val (VBool False))) mm = VBool True
 eval (Not x) mm =  (eval x mm)
 
 
-
---type Memory = [(String, WValue)] memory again for access
---values for testing
-f = Val (VInt 4)
-g = VarDecl "acc" f
 -- exec function
 exec :: WStmt -> Memory -> Memory
---exec = undefined
---exec (VarDecl name thing) mm = []
+
 exec (VarDecl name thing) mm =  if (lookup name mm) == Nothing then (name, eval thing mm) : mm   else  error "Variable already declared"  --is this right???? how does memory work???
 exec (Assign name thing) mm = if (lookup name mm) /= Nothing then help2 mm name (eval thing mm) else error "Variable was not declared"  --- i know this is wrong lol
 exec (Block stmtlist) mm = (helperBlock stmtlist mm2)  --need recusion for the block!!!
   where mm2 = ("|",VInt (-1)) : mm
-exec (If exp stmt1 stmt2) mm = if asBool(eval exp mm) then exec stmt2 mm else exec stmt1 mm  --both stmt1 and stmt2 can be recusive like if (5<3) > (6<2)
+exec (If exp stmt1 stmt2) mm = if asBool(eval exp mm) then exec stmt1 mm else exec stmt2 mm  --both stmt1 and stmt2 can be recusive like if (5<3) > (6<2)
 exec (While exp stmt1) mm = if asBool(eval exp mm) then exec (While exp stmt1) (exec stmt1 mm) else mm 
 
 -- helpher function for block
 helperBlock :: [WStmt] -> Memory -> Memory
-helperBlock [] mm = mm -- CALL DROP MEMORY HERE maybe when a block is done clear the memory with a new function
+helperBlock [] mm = dropMemory mm -- CALL DROP MEMORY HERE maybe when a block is done clear the memory with a new function
 helperBlock (x:xs) mm = (helperBlock xs (exec x mm))
---maybe need a while blcok helper similar to helperBlock
---whileHelper:: WStmt -> Memory -> Memory
---whileHelper blck mm =  blck (exec blck mm)
-
-
+--removed the memory that is no longer used
 dropMemory:: Memory -> Memory
 dropMemory (x:xs) = if not (isMarker x) then dropMemory xs else xs
 
-
+--helps with assining
 help:: Memory -> String -> Int -> Int 
 help (x:xs) f count = if fst x == f then count else help xs f (count+1)
-
+--second function to help with assigning
 help2:: Memory -> String -> WValue -> Memory
 help2 myList name newV = take count myList ++ [(name,newV)] ++ drop (count+1) myList
   where count = (help myList name 0 )
+
+
 -- example programs
 result = lookup "result" ( exec factorial [("result", undefined), ("x", VInt 10)] )
--- easy test case 
-factorial2 = 
+
+--BOTH TEST CASESE WORK 
+
+factorial = 
   Block
   [
-    VarDecl "i" (Val (VInt 0)),
-    VarDecl "acc" (Val (VInt 0)),
-    VarDecl "result" (Val (VInt 0)),
-    While (Less (Var "i") (Val (VInt 3)))
+    VarDecl "acc" (Val (VInt 1)),
+    While (Greater (Var "x") (Val (VInt 1)))
     (
       Block
       [
-        Assign "acc" (Plus (Var "acc") (Var "i")),
-        Assign "i" (Plus (Var "i") (Val (VInt 1)))         
+        Assign "acc" (Multiplies (Var "acc") (Var "x")),
+        Assign "x" (Minus (Var "x") (Val (VInt 1)))         
       ]
     ),
     Assign "result" (Var "acc")
@@ -204,10 +197,56 @@ main = do c <- runTestTT myTestList
               fails = failures c
           if (errs + fails /= 0) then exitFailure else return ()
 
-ahh:: [Int] -> Int -> Int-> Int
-ahh (x:xs) f count = if x == f then count else ahh xs f (count + 1)
+--HERE IS THE FIBINOCCI SEQUENCE 
 
-ahh2:: [Int] -> Int -> Int-> [Int]
-ahh2 myList oldV newV = take count myList ++ [newV] ++ drop (count+1) myList
-  where count = (ahh myList oldV 0 )
+fibonacci :: Int -> Int
+fibonacci n = asInt(fromJust(lookup "result" (exec fibH [("result",undefined),("n",VInt n)])))
 
+fibH = Block
+  [
+    VarDecl "x" (Val (VInt 0)),
+    VarDecl "y" (Val (VInt 1)),
+    VarDecl "count" (Val (VInt (1))),
+    If (Equals (Var "n") (Val(VInt 0))) --if x == 0 then x = 0
+      (Block [Assign "result"(Val(VInt 0))])
+      (Block [ --elif x ==1 then x =0
+        If (Equals (Var "n") (Val(VInt 1)))
+          (Block [Assign "result"(Val(VInt 1))])
+          (Block [
+              
+              While (Less (Var "count")(Var "n"))
+                (Block
+                  [
+                    Assign "result" (Plus (Var "x") (Var "y")),
+                    Assign "x" (Var "y"),
+                    Assign "y" (Var "result"),
+                    Assign "count" (Plus (Var "count") (Val (VInt 1)))
+                  ])
+              
+                   
+          ])
+      ])
+  ]
+
+--OTHER METHOD TO DO IT RECUSIVILY
+
+-- fibonacci2:: Int -> Int
+-- fibonacci2 n = asInt (fromJust q)
+--   where q = lookup "result" (exec (fhelp [("result",undefined),("n",VInt n)] n) [])
+
+
+-- fhelp :: Memory -> Int-> WStmt
+-- fhelp mm n = Block
+--   [
+--     If (Equals (Var "x") (Val(VInt 0))) --if x == 0 then x = 0
+--       (Block [Assign "result"(Val(VInt 0))])
+--       (Block [ --elif x ==1 then x =0
+--         If (Equals (Var "x") (Val(VInt 1)))
+--           (Block [Assign "result"(Val(VInt 1))])
+--           (Block [
+--               Assign "result" (Val(eval (Plus (Val(VInt(fibonacci2 (n-1)))) (Val(VInt(fibonacci2 (n-2)))))[]))
+                   
+--           ])
+--       ])
+--   ]
+--   where n = asInt(fromJust(lookup "n" mm))
