@@ -123,13 +123,16 @@ exec (Assign name thing) mm = if (lookup name mm) /= Nothing then help2 mm name 
 exec (Block stmtlist) mm = (helperBlock stmtlist mm2)  --need recusion for the block!!!
   where mm2 = ("|",VInt (-1)) : mm
 exec (If exp stmt1 stmt2) mm = if asBool(eval exp mm) then exec stmt2 mm else exec stmt1 mm  --both stmt1 and stmt2 can be recusive like if (5<3) > (6<2)
---exec (While exp stmt1) mm = if asBool(eval exp mm) then exec stmt1 mm else  
+exec (While exp stmt1) mm = if asBool(eval exp mm) then exec (While exp stmt1) (exec stmt1 mm) else mm 
 
 -- helpher function for block
 helperBlock :: [WStmt] -> Memory -> Memory
-helperBlock [] mm = mm --maybe when a block is done clear the memory with a new function
+helperBlock [] mm = mm -- CALL DROP MEMORY HERE maybe when a block is done clear the memory with a new function
 helperBlock (x:xs) mm = (helperBlock xs (exec x mm))
 --maybe need a while blcok helper similar to helperBlock
+--whileHelper:: WStmt -> Memory -> Memory
+--whileHelper blck mm =  blck (exec blck mm)
+
 
 dropMemory:: Memory -> Memory
 dropMemory (x:xs) = if not (isMarker x) then dropMemory xs else xs
@@ -142,16 +145,20 @@ help2:: Memory -> String -> WValue -> Memory
 help2 myList name newV = take count myList ++ [(name,newV)] ++ drop (count+1) myList
   where count = (help myList name 0 )
 -- example programs
-factorial = 
+result = lookup "result" ( exec factorial [("result", undefined), ("x", VInt 10)] )
+-- easy test case 
+factorial2 = 
   Block
   [
-    VarDecl "acc" (Val (VInt 1)),
-    While (Greater (Var "x") (Val (VInt 1)))
+    VarDecl "i" (Val (VInt 0)),
+    VarDecl "acc" (Val (VInt 0)),
+    VarDecl "result" (Val (VInt 0)),
+    While (Less (Var "i") (Val (VInt 3)))
     (
       Block
       [
-        Assign "acc" (Multiplies (Var "acc") (Var "x")),
-        Assign "x" (Minus (Var "x") (Val (VInt 1)))         
+        Assign "acc" (Plus (Var "acc") (Var "i")),
+        Assign "i" (Plus (Var "i") (Val (VInt 1)))         
       ]
     ),
     Assign "result" (Var "acc")
@@ -165,12 +172,7 @@ p1 = Block
          ( Block [ Assign "x" (Val (VInt 1)) ] )
          ( Block [ Assign "x" (Val (VInt 2)) ] )
      ]
-p2 = Block
-     [
-       VarDecl "x" (Val (VInt 0)),
-       Assign "c" (Val (VInt 7))
 
-     ]
 -- some useful helper functions
 lookup s [] = Nothing
 lookup s ((k,v):xs) | s == k = Just v
